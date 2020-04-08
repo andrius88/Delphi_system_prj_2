@@ -1,0 +1,621 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Grids, Vcl.DBGrids,
+  Data.DB, ZAbstractRODataset, ZAbstractDataset, ZDataset, ZAbstractConnection,
+  ZConnection, Vcl.ExtCtrls, Vcl.DBCtrls, Vcl.ComCtrls, ZSqlUpdate,
+  Vcl.DBLookup, System.Types, System.IOUtils, ZSqlMonitor, Unit2, Unit3, Unit4
+  , HackDBGrid
+  ;
+
+type
+  // Hack to redeclare your TDBGrid here without the the form designer going mad
+  TDBGrid = class(Vcl.DBGrids.TDBGrid)
+    procedure WMHScroll(var Msg: TWMHScroll); message WM_HSCROLL;
+  end;
+
+
+type
+  TfrmMainForm = class(TForm)
+    Label3: TLabel;
+    PageControl1: TPageControl;
+    tsSystem: TTabSheet;
+    lblLabelSystem: TLabel;
+    lblLabelModule: TLabel;
+    dbgSystem: TDBGrid;
+    dgbModule: TDBGrid;
+    DBNavigator1: TDBNavigator;
+    DBNavigator2: TDBNavigator;
+    tsSystemVersion: TTabSheet;
+    lblLabelSystemVersion: TLabel;
+    lblLabelModuleVersion: TLabel;
+    lblLabelSytemName: TLabel;
+    dbgSystemVersion: TDBGrid;
+    dbgModuleVersion: TDBGrid;
+    DBNavigator3: TDBNavigator;
+    DBNavigator4: TDBNavigator;
+    cbDBLookupComboBox: TDBLookupComboBox;
+    dbgModuleDiff: TDBGrid;
+    Button1: TButton;
+    Button2: TButton;
+    tsSites: TTabSheet;
+    lblSites: TLabel;
+    lblSiteRunsSystem: TLabel;
+    lblSiteRunsModule: TLabel;
+    dbgSites: TDBGrid;
+    dbgSiteRunSystem: TDBGrid;
+    dbgSiteRunsModule: TDBGrid;
+    DBNavigator5: TDBNavigator;
+    cbUserComboBox: TDBLookupComboBox;
+    DBNavigator7: TDBNavigator;
+    DBNavigator8: TDBNavigator;
+    cbSiteRunsSystemComboBox: TDBLookupComboBox;
+    cbSiteRunsModuleComboBox: TDBLookupComboBox;
+    tsUsers: TTabSheet;
+    lblUser: TLabel;
+    dbgUser: TDBGrid;
+    DBNavigator6: TDBNavigator;
+    ZSQLMonitor1: TZSQLMonitor;
+    procedure FormCreate(Sender: TObject);
+    procedure tsSystemVersionEnter(Sender: TObject);
+    procedure dbgModuleVersionColExit(Sender: TObject);
+    procedure dbgModuleVersionKeyPress(Sender: TObject; var Key: Char);
+    procedure DBNavigator4Click(Sender: TObject; Button: TNavigateBtn);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure dbgModuleVersionDrawColumnCell(Sender: TObject; const Rect: TRect;
+      DataCol: Integer; Column: TColumn; State: TGridDrawState);
+    procedure dbgModuleVersionExit(Sender: TObject);
+    procedure dbgModuleVersionCellClick(Column: TColumn);
+    procedure tsSystemVersionShow(Sender: TObject);
+    procedure tsSitesEnter(Sender: TObject);
+    procedure tsUsersEnter(Sender: TObject);
+    procedure dbgSitesDrawColumnCell (Sender: TObject; const Rect: TRect;
+      DataCol: Integer; Column: TColumn; State: TGridDrawState);
+    procedure dbgSitesColExit(Sender: TObject);
+    procedure dbgSitesKeyPress(Sender: TObject; var Key: Char);
+    procedure dbgSiteRunSystemDrawColumnCell (Sender: TObject; const Rect: TRect;
+      DataCol: Integer; Column: TColumn; State: TGridDrawState);
+    procedure dbgSiteRunSystemColExit(Sender: TObject);
+    procedure dbgSiteRunSystemKeyPress(Sender: TObject; var Key: Char);
+    procedure dbgSiteRunsModuleDrawColumnCell (Sender: TObject; const Rect: TRect;
+      DataCol: Integer; Column: TColumn; State: TGridDrawState);
+    procedure dbgSiteRunsModuleColExit(Sender: TObject);
+    procedure dbgSiteRunsModuleKeyPress(Sender: TObject; var Key: Char);
+    procedure dbgSiteRunSystemCellClick(Column: TColumn);
+    procedure dbgSiteRunsModuleCellClick(Column: TColumn);
+    procedure dbgSiteRunSystemExit(Sender: TObject);
+    procedure dbgSitesExit(Sender: TObject);
+    procedure dbgSiteRunsModuleExit(Sender: TObject);
+    procedure dbgSitesCellClick(Column: TColumn);
+    procedure dbgUserExit(Sender: TObject);
+    procedure dbgSitesColEnter(Sender: TObject);
+    procedure dbgSystemVersionCellClick(Column: TColumn);
+    procedure dbgSystemVersionEnter(Sender: TObject);
+
+
+  private
+    procedure ComboBox2Rect(ACombo: TWinControl; ARect: TGridRect);
+    function DSiFileSize(const fileName: string): int64;
+  public
+
+end;
+
+var
+  frmMainForm: TfrmMainForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TDBGrid.WMHScroll(var Msg: TWMHScroll);
+begin
+  case Msg.ScrollCode of
+    SB_ENDSCROLL:
+      begin
+        if (Self.Name = 'dbgSites') and (self.SelectedField = dmDataModule.qSitemanager) then
+          Self.OnColEnter(Self);
+        OutputDebugString('SB_ENDSCROLL');
+      end;
+    SB_LEFT:
+      OutputDebugString('SB_LEFT');
+    SB_RIGHT:
+      OutputDebugString('SB_RIGHT');
+    SB_LINELEFT:
+    begin
+      //Self.OnColEnter(Self);
+      OutputDebugString('SB_LINELEFT');
+    end;
+    SB_LINERIGHT:
+      OutputDebugString('SB_LINERIGHT');
+    SB_PAGELEFT:
+    begin
+      //Self.OnColEnter(Self);
+      OutputDebugString('SB_PAGELEFT');
+    end;
+    SB_PAGERIGHT:
+      OutputDebugString('SB_PAGERIGHT');
+    SB_THUMBPOSITION:
+      OutputDebugString('SB_THUMBPOSITION');
+  end;
+  inherited; // to keep the expected behavior
+end;
+
+procedure TfrmMainForm.FormCreate(Sender: TObject);
+begin
+  PageControl1.Pages[1];
+  dmDataModule.qSystem.Open;
+end;
+
+
+procedure TfrmMainForm.tsSystemVersionEnter(Sender: TObject);
+begin
+  lblLabelSytemName.Caption := 'System: ' + dmDataModule.qSystemcode.Value;
+  dmDataModule.qSystemVersion.Close;
+  dmDataModule.qSystemVersion.Params.ParamByName('prm_system').Value := dmDataModule.qSystemcode.Value;
+  dmDataModule.qSystemVersion.Open;
+  dmDataModule.qModuleVersion.Close;
+  dmDataModule.qModuleVersion.Params.ParamByName('prm_system').Value := dmDataModule.qSystemcode.Value;
+  dmDataModule.qModuleVersion.Open;
+  cbDBLookupComboBox.Visible := False;
+
+  if (dmDataModule.qModuleVersionmodule_code.Value <> '') or (dmDataModule.qModuleVersionversion.Value <> '') then
+  begin
+    dmDataModule.qModuleVerDiff.Close;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_system_code').Value := dmDataModule.qSystemcode.Value;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_code').Value := dmDataModule.qModuleVersionmodule_code.Value;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_ver').Value := dmDataModule.qModuleVersionversion.Value;
+    dmDataModule.qModuleVerDiff.Open;
+  end
+  else
+  begin
+    dmDataModule.qModuleVerDiff.Close;
+    // nustatomi tiketina neegzistuojancios parametru vertes, kad failu gride nieko nerodytu
+    dmDataModule.qModuleVerDiff.ParamByName('prm_system_code').Value := 'test_test';
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_code').Value := 'test_test';
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_ver').Value := '0.0.0.0';
+    dmDataModule.qModuleVerDiff.Open;
+  end;
+end;
+
+
+procedure TfrmMainForm.tsSystemVersionShow(Sender: TObject);
+begin
+  lblLabelSytemName.Caption := 'System: ' + dmDataModule.qSystemcode.Value;
+  dmDataModule.qSystemVersion.Close;
+  dmDataModule.qSystemVersion.Params.ParamByName('prm_system').Value := dmDataModule.qSystemcode.Value;
+  dmDataModule.qSystemVersion.Open;
+  dmDataModule.qModuleVersion.Close;
+  dmDataModule.qModuleVersion.Params.ParamByName('prm_system').Value := dmDataModule.qSystemcode.Value;
+  dmDataModule.qModuleVersion.Open;
+  cbDBLookupComboBox.Visible := False;
+
+  if (dmDataModule.qModuleVersionmodule_code.Value <> '') or (dmDataModule.qModuleVersionversion.Value <> '') then
+  begin
+    dmDataModule.qModuleVerDiff.Close;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_system_code').Value := dmDataModule.qSystemcode.Value;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_code').Value := dmDataModule.qModuleVersionmodule_code.Value;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_ver').Value := dmDataModule.qModuleVersionversion.Value;
+    dmDataModule.qModuleVerDiff.Open;
+  end
+  else
+  begin
+    dmDataModule.qModuleVerDiff.Close;
+    // nustatomi tiketina neegzistuojancios parametru vertes, kad failu gride nieko nerodytu
+    dmDataModule.qModuleVerDiff.ParamByName('prm_system_code').Value := 'test_test';
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_code').Value := 'test_test';
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_ver').Value := '0.0.0.0';
+    dmDataModule.qModuleVerDiff.Open;
+  end;
+end;
+
+procedure TfrmMainForm.tsSitesEnter(Sender: TObject);
+begin
+  dmDataModule.qSite.Close;
+  dmDataModule.qSite.Open;
+
+  cbUserComboBox.Visible := False;
+  cbSiteRunsSystemComboBox.Visible := False;
+  cbSiteRunsModuleComboBox.Visible := False;
+end;
+
+procedure TfrmMainForm.tsUsersEnter(Sender: TObject);
+begin
+  dmDataModule.qUser.Close;
+  dmDataModule.qUser.Open;
+end;
+
+procedure TfrmMainForm.Button1Click(Sender: TObject);
+var
+  _FileNameFull: string;
+  _FileName: string;
+  _MainDirName: string;
+  _Idx, _FileSize : Integer;
+  _PathStrArray : TStringDynArray;
+begin
+  with TFileOpenDialog.Create(nil) do
+  try
+    Options := [fdoPickFolders];
+    if Execute then
+      _FileNameFull:= FileName;
+  finally
+    Free;
+  end;
+
+  try
+    frmFormFileUpload.Position := TPosition(6);
+    frmFormFileUpload.Visible := True;
+    frmFormFileUpload.Update;
+
+    _Idx := LastDelimiter('\', _FileNameFull);
+    _MainDirName := copy (_FileNameFull, _Idx, length(_FileNameFull));
+    //ShowMessage(_FileNameFull);
+
+    if (_FileNameFull <> '') then
+    begin
+      _PathStrArray := System.IOUtils.TDirectory.GetFiles(_FileNameFull, '*', System.IOUtils.TSearchOption.soAllDirectories);
+      //ShowMessage('_PathStrArray: ' + IntToStr( length(_PathStrArray)));
+
+      for _FileNameFull in  _PathStrArray do
+      begin
+        if _Idx>0 then
+        begin
+          _FileName := copy (_FileNameFull, _Idx+length(_MainDirName), length(_FileNameFull));
+        end
+        else
+          ShowMessage('Direktorija nepasirinkta');
+
+          dmDataModule.qModuleVerDiffInsrt.Close;
+          dmDataModule.qModuleVerDiffInsrt.Params.ParamByName('prm_system_code').Value := dmDataModule.qSystemcode.Value;
+          dmDataModule.qModuleVerDiffInsrt.Params.ParamByName('prm_module_code').Value := dmDataModule.qModuleVersionmodule_code.Value;
+          dmDataModule.qModuleVerDiffInsrt.Params.ParamByName('prm_module_ver').Value := dmDataModule.qModuleVersionversion.Value;
+          dmDataModule.qModuleVerDiffInsrt.Params.ParamByName('prm_dir_name').Value := _FileName;
+          _FileSize := DSiFileSize(_FileNameFull);
+          if (_FileSize = 0) then
+            dmDataModule.qModuleVerDiffInsrt.Params.ParamByName('prm_blob').Value := ''
+          else
+            dmDataModule.qModuleVerDiffInsrt.Params.ParamByName('prm_blob').LoadFromFile(_FileNameFull, ftBlob);
+
+          dmDataModule.qModuleVerDiffInsrt.ExecSQL;
+      end;
+    end;
+
+    frmFormFileUpload.Visible := False;
+  finally
+    frmFormFileUpload.Visible := False;
+  end;
+
+  dmDataModule.qModuleVerDiff.Close;
+  if (dmDataModule.qModuleVersionmodule_code.Value <> '') or (dmDataModule.qModuleVersionversion.Value <> '') then
+  begin
+    dmDataModule.qModuleVerDiff.Close;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_system_code').Value := dmDataModule.qSystemcode.Value;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_code').Value := dmDataModule.qModuleVersionmodule_code.Value;
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_ver').Value := dmDataModule.qModuleVersionversion.Value;
+    dmDataModule.qModuleVerDiff.Open;
+  end
+  else
+  begin
+    dmDataModule.qModuleVerDiff.Close;
+    // nustatomi tiketina neegzistuojancios parametru vertes, kad failu gride nieko nerodytu
+    dmDataModule.qModuleVerDiff.ParamByName('prm_system_code').Value := 'test_test';
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_code').Value := 'test_test';
+    dmDataModule.qModuleVerDiff.ParamByName('prm_module_ver').Value := '0.0.0.0';
+    dmDataModule.qModuleVerDiff.Open;
+  end;
+  dmDataModule.qModuleVerDiff.Open;
+end;
+
+
+function TfrmMainForm.DSiFileSize(const fileName: string): int64;
+var
+  fHandle: DWORD;
+begin
+  fHandle := CreateFile(PChar(fileName), 0, 0, nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+  if fHandle = INVALID_HANDLE_VALUE then
+    Result := -1
+  else
+    try
+      Int64Rec(Result).Lo := GetFileSize(fHandle, @Int64Rec(Result).Hi);
+    finally
+    begin
+      CloseHandle(fHandle);
+    end;
+  end;
+end;
+
+
+procedure TfrmMainForm.Button2Click(Sender: TObject);
+begin
+  dmDataModule.qModuleVerDiffDel.Params.ParamByName('prm_system').Value := dmDataModule.qSystemcode.Value;
+  dmDataModule.qModuleVerDiffDel.Params.ParamByName('prm_module_code').Value := dmDataModule.qModuleVersionmodule_code.Value;
+  dmDataModule.qModuleVerDiffDel.Params.ParamByName('prm_dir_path').Value := dmDataModule.qModuleVerDiffdestination_path.Value;
+  dmDataModule.qModuleVerDiffDel.ExecSQL;
+
+  dmDataModule.qModuleVerDiff.Close;
+  dmDataModule.qModuleVerDiff.Open;
+end;
+
+
+procedure TfrmMainForm.dbgModuleVersionCellClick(Column: TColumn);
+begin
+   if Column.Index = 0 then
+     dbgModuleVersion.Options := dbgModuleVersion.Options - [dgEditing]
+   else
+     dbgModuleVersion.Options := dbgModuleVersion.Options + [dgEditing];
+   dbgModuleVersion.SetFocus;
+end;
+
+procedure TfrmMainForm.dbgSitesCellClick(Column: TColumn);
+begin
+   if Column.Index = 8 then
+     dbgSites.Options := dbgSites.Options - [dgEditing]
+   else
+     dbgSites.Options := dbgSites.Options + [dgEditing];
+   dbgSites.SetFocus;
+end;
+
+procedure TfrmMainForm.dbgSiteRunSystemCellClick(Column: TColumn);
+begin
+   if Column.Index = 0 then
+     dbgSiteRunSystem.Options := dbgSiteRunSystem.Options - [dgEditing]
+   else
+     dbgSiteRunSystem.Options := dbgSiteRunSystem.Options + [dgEditing];
+   dbgSiteRunSystem.SetFocus;
+end;
+
+procedure TfrmMainForm.dbgSiteRunsModuleCellClick(Column: TColumn);
+begin
+  if Column.Index = 0 then
+     dbgSiteRunsModule.Options := dbgSiteRunsModule.Options - [dgEditing]
+   else
+     dbgSiteRunsModule.Options := dbgSiteRunsModule.Options + [dgEditing];
+   dbgSiteRunsModule.SetFocus;
+end;
+
+procedure TfrmMainForm.dbgModuleVersionDrawColumnCell(Sender: TObject; const Rect: TRect;
+  DataCol: Integer; Column: TColumn; State: TGridDrawState);
+begin
+  if (gdFocused in State) then
+  begin
+    if (Column.Field.FieldName = cbDBLookupComboBox.DataField) then
+    begin
+      cbDBLookupComboBox.Left := Rect.Left + dbgModuleVersion.Left + 2;
+      cbDBLookupComboBox.Top := Rect.Top + dbgModuleVersion.Top + 2;
+      cbDBLookupComboBox.Width := Rect.Right - Rect.Left;
+      cbDBLookupComboBox.Width := Rect.Right - Rect.Left;
+      cbDBLookupComboBox.Height := Rect.Bottom - Rect.Top;
+
+      cbDBLookupComboBox.Visible := True;
+    end;
+  end
+end;
+
+
+procedure TfrmMainForm.dbgSitesDrawColumnCell (Sender: TObject; const Rect: TRect;
+ DataCol: Integer; Column: TColumn; State: TGridDrawState);
+begin
+if (gdFocused in State) then
+  begin
+  if (Column.Field.FieldName = cbUserComboBox.DataField) then
+    begin
+      cbUserComboBox.Left := Rect.Left + dbgSites.Left + 2;
+      cbUserComboBox.Top := Rect.Top + dbgSites.Top + 2;
+      cbUserComboBox.Width := Rect.Right - Rect.Left;
+      cbUserComboBox.Width := Rect.Right - Rect.Left;
+      cbUserComboBox.Height := Rect.Bottom - Rect.Top;
+
+      cbUserComboBox.Visible := True;
+    end;
+   end
+end;
+
+
+procedure TfrmMainForm.dbgSiteRunSystemDrawColumnCell (Sender: TObject; const Rect: TRect;
+ DataCol: Integer; Column: TColumn; State: TGridDrawState);
+begin
+if (gdFocused in State) then
+  begin
+  if (Column.Field.FieldName = cbSiteRunsSystemComboBox.DataField) then
+    begin
+      cbSiteRunsSystemComboBox.Left := Rect.Left + dbgSiteRunSystem.Left + 2;
+      cbSiteRunsSystemComboBox.Top := Rect.Top + dbgSiteRunSystem.Top + 2;
+      cbSiteRunsSystemComboBox.Width := Rect.Right - Rect.Left;
+      cbSiteRunsSystemComboBox.Width := Rect.Right - Rect.Left;
+      cbSiteRunsSystemComboBox.Height := Rect.Bottom - Rect.Top;
+
+      cbSiteRunsSystemComboBox.Visible := True;
+    end;
+   end
+end;
+
+
+procedure TfrmMainForm.dbgSiteRunsModuleDrawColumnCell (Sender: TObject; const Rect: TRect;
+ DataCol: Integer; Column: TColumn; State: TGridDrawState);
+begin
+if (gdFocused in State) then
+  begin
+  if (Column.Field.FieldName = cbSiteRunsModuleComboBox.DataField) then
+    begin
+      cbSiteRunsModuleComboBox.Left := Rect.Left + dbgSiteRunsModule.Left + 2;
+      cbSiteRunsModuleComboBox.Top := Rect.Top + dbgSiteRunsModule.Top + 2;
+      cbSiteRunsModuleComboBox.Width := Rect.Right - Rect.Left;
+      cbSiteRunsModuleComboBox.Width := Rect.Right - Rect.Left;
+      cbSiteRunsModuleComboBox.Height := Rect.Bottom - Rect.Top;
+
+      cbSiteRunsModuleComboBox.Visible := True;
+    end;
+   end
+end;
+
+
+procedure TfrmMainForm.dbgModuleVersionColExit(Sender: TObject);
+begin
+  if dbgModuleVersion.SelectedField.FieldName = cbDBLookupComboBox.DataField then
+    cbDBLookupComboBox.Visible := False;
+end;
+
+
+procedure TfrmMainForm.dbgSitesColEnter(Sender: TObject);
+begin
+  if dbgSites.SelectedField = dmDataModule.qSitemanager then
+  begin
+    ComboBox2Rect(cbUserComboBox, dbgSites.Selection);
+  end
+  else
+    cbUserComboBox.Visible := True;
+end;
+
+procedure TfrmMainForm.ComboBox2Rect(ACombo: TWinControl; ARect: TGridRect);
+begin
+  ACombo.Left := ARect.Left + ARect.TopLeft.X + 2;
+  ACombo.Top := ARect.Top + ARect.TopLeft.Y + 2;
+  ACombo.Width := ARect.Right - ARect.Left;
+  ACombo.Height := ARect.Bottom - ARect.Top;
+  ACombo.Visible := True;
+end;
+
+procedure TfrmMainForm.dbgSitesColExit(Sender: TObject);
+begin
+if dbgSites.SelectedField.FieldName = cbUserComboBox.DataField then
+  cbUserComboBox.Visible := False;
+end;
+
+procedure TfrmMainForm.dbgSiteRunSystemColExit(Sender: TObject);
+begin
+if dbgSiteRunSystem.SelectedField.FieldName = cbSiteRunsSystemComboBox.DataField then
+  cbSiteRunsSystemComboBox.Visible := False;
+end;
+
+
+procedure TfrmMainForm.dbgSiteRunsModuleColExit(Sender: TObject);
+begin
+if dbgSiteRunsModule.SelectedField.FieldName = cbSiteRunsModuleComboBox.DataField then
+  cbSiteRunsModuleComboBox.Visible := False;
+end;
+
+procedure TfrmMainForm.dbgModuleVersionKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (key = Chr(9)) then
+    Exit;
+  if (key = Chr(13)) then
+    dmDataModule.qModuleVersion.ApplyUpdates;
+  if (dbgModuleVersion.SelectedField.FieldName = cbDBLookupComboBox.DataField) then
+  begin
+    cbDBLookupComboBox.SetFocus;
+    SendMessage(cbDBLookupComboBox.Handle, WM_Char, word(Key), 0);
+  end;
+end;
+
+
+procedure TfrmMainForm.dbgSitesKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (key = Chr(9)) then
+    Exit;
+  if (key = Chr(13)) then
+    dmDataModule.qSite.ApplyUpdates;
+  if (dbgSites.SelectedField.FieldName = cbUserComboBox.DataField) then
+  begin
+    cbUserComboBox.SetFocus;
+    SendMessage(cbUserComboBox.Handle, WM_Char, word(Key), 0);
+  end
+end;
+
+procedure TfrmMainForm.dbgSystemVersionEnter(Sender: TObject);
+begin
+  cbDBLookupComboBox.Visible := False;
+end;
+
+procedure TfrmMainForm.dbgSiteRunSystemKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (key = Chr(9)) then
+    Exit;
+  if (key = Chr(13)) then
+    dmDataModule.qSiteRunsSystem.ApplyUpdates;
+  if (dbgSiteRunSystem.SelectedField.FieldName = cbSiteRunsSystemComboBox.DataField) then
+  begin
+    cbSiteRunsSystemComboBox.SetFocus;
+    SendMessage(cbSiteRunsSystemComboBox.Handle, WM_Char, word(Key), 0);
+  end
+end;
+
+procedure TfrmMainForm.dbgSiteRunsModuleKeyPress(Sender: TObject; var Key: Char);
+begin
+  if (key = Chr(9)) then
+    Exit;
+  if (key = Chr(13)) then
+    dmDataModule.qSiteRunsModule.ApplyUpdates;
+  if (dbgSiteRunsModule.SelectedField.FieldName = cbSiteRunsModuleComboBox.DataField) then
+  begin
+    cbSiteRunsModuleComboBox.SetFocus;
+    SendMessage(cbSiteRunsModuleComboBox.Handle, WM_Char, word(Key), 0);
+  end
+end;
+
+procedure TfrmMainForm.dbgModuleVersionExit(Sender: TObject);
+begin
+  if dmDataModule.qModuleVersion.State in [dsEdit, dsInsert] then
+    dmDataModule.qModuleVersion.ApplyUpdates;
+end;
+
+procedure TfrmMainForm.dbgUserExit(Sender: TObject);
+begin
+  if dmDataModule.qUser.State in [dsEdit, dsInsert] then
+    begin
+      dmDataModule.qUser.ApplyUpdates;
+    end;
+
+  dmDataModule.qUserCombobox.Close;
+  dmDataModule.qUserCombobox.Open;
+end;
+
+procedure TfrmMainForm.dbgSiteRunSystemExit(Sender: TObject);
+begin
+  if dmDataModule.qSiteRunsSystem.State in [dsEdit, dsInsert] then
+    begin
+      dmDataModule.qSiteRunsSystem.ApplyUpdates;
+      cbSiteRunsSystemComboBox.Visible := False;
+    end;
+
+  dmDataModule.qSiteRunsModuleCmbBox.Close;
+  dmDataModule.qSiteRunsModuleCmbBox.ParamByName('prm_system_code').Value := dmDataModule.qSiteRunsSystemsystem_code.Value;
+  dmDataModule.qSiteRunsModuleCmbBox.Open;
+end;
+
+
+procedure TfrmMainForm.dbgSiteRunsModuleExit(Sender: TObject);
+begin
+  if dmDataModule.qSiteRunsModule.State in [dsEdit, dsInsert] then
+    begin
+      dmDataModule.qSiteRunsModule.ApplyUpdates;
+      cbSiteRunsModuleComboBox.Visible := False;
+    end;
+end;
+
+procedure TfrmMainForm.dbgSitesExit(Sender: TObject);
+begin
+  if dmDataModule.qSite.State in [dsEdit, dsInsert] then
+    dmDataModule.qSite.ApplyUpdates;
+
+  //cbUserComboBox.Visible := False;  // neveikia comboBox
+end;
+
+
+procedure TfrmMainForm.DBNavigator4Click(Sender: TObject; Button: TNavigateBtn);
+begin
+  if Button = TNavigateBtn.nbInsert then
+  begin
+    dmDataModule.qModuleVersion.Post;
+    dbgModuleVersion.SetFocus
+  end
+  else if Button = TNavigateBtn.nbPost then
+    dmDataModule.qModuleVersion.ApplyUpdates
+  else if Button = TNavigateBtn.nbDelete then
+    if (not dmDataModule.qModuleVersionmodule_code.IsNull) and (not dmDataModule.qModuleVersionmodule_code.IsNull) then
+      dmDataModule.qModuleVersion.ApplyUpdates;
+end;
+
+end.
